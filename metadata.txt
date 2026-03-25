@@ -1,0 +1,28 @@
+[general]
+name=QGIS AI Agent
+qgisMinimumVersion=3.28
+description=面向国土空间规划与测绘工作的 QGIS AI 助手，支持问答、处理算法执行、图层操作和按规程符号化。
+version=0.2.0
+author=槐中路科科
+email=gaojunke@outlook.com
+about=面向国土空间规划、土地整治、调查监测和部分测绘场景的停靠面板式 QGIS AI 助手。
+  支持自然语言问答、多步 Processing 执行、图层管理、字段计算、短会话记忆、最近操作记录、MCP 上下文桥接，以及按规划规程进行标准化符号化。
+  作者：槐中路科科；邮箱：gaojunke@outlook.com；QQ：996517087。
+changelog=0.2.0
+  - 对话气泡助手标题由“插件”调整为“AI”。
+  - 补充作者、邮箱、联系信息和插件说明。
+  - 完成上下文缓存、执行取消、状态更新和更稳的错误提示。
+  - 支持图层单色渲染、分类渲染和按内置规程标准渲染。
+  - 增加标准样式库机制，可按附录 B/C/D 进行符号化。
+  - DeepSeek 独立 provider 升级，支持 thinking、tool calling 和 reasoning 展示。
+  - Gemini provider 改为官方 OpenAI-compatible 接入方式。
+  0.1.0
+  - 初始版本，提供聊天式 QGIS 命令执行和基础问答能力。
+tracker=https://github.com/gaojunke/QGIS-AI-Agent/issues
+repository=https://github.com/gaojunke/QGIS-AI-Agent
+homepage=https://github.com/gaojunke/QGIS-AI-Agent
+category=Vector
+icon=resources/icon.png
+experimental=False
+deprecated=False
+tags=qgis,ai,llm,processing,gis,symbology,land-planning,surveying
