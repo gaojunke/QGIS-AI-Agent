@@ -13,6 +13,8 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
+from ..i18n import choose
+
 
 class ChatInputEdit(QPlainTextEdit):
     send_requested = pyqtSignal()
@@ -86,7 +88,7 @@ class ChatMessageWidget(QFrame):
                 widget.deleteLater()
 
         for action in self.actions:
-            button = QPushButton(action.get("label", "选择"))
+            button = QPushButton(action.get("label", choose("选择", "Select")))
             button.setCursor(Qt.PointingHandCursor)
             button.setStyleSheet(
                 "QPushButton { text-align: left; background: #ffffff; border: 1px solid #cbd5e1; "
@@ -97,22 +99,22 @@ class ChatMessageWidget(QFrame):
             self.actions_layout.addWidget(button)
 
     def _apply_style(self):
-        title = "你" if self.role == "user" else "AI"
+        title = choose("你", "You") if self.role == "user" else "AI"
         background = "#dbeafe" if self.role == "user" else "#ffffff"
         border = "#bfdbfe" if self.role == "user" else "#e5e7eb"
 
         if self.kind == "status":
             background = "#eff6ff"
             border = "#bfdbfe"
-            title = "状态"
+            title = choose("状态", "Status")
         elif self.kind == "error":
             background = "#fef2f2"
             border = "#fecaca"
-            title = "错误"
+            title = choose("错误", "Error")
         elif self.kind == "info":
             background = "#f0fdf4"
             border = "#bbf7d0"
-            title = "提示"
+            title = choose("提示", "Info")
 
         self.title_label.setText(title)
         self.bubble.setStyleSheet(

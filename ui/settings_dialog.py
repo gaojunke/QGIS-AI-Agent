@@ -18,6 +18,7 @@ from qgis.PyQt.QtWidgets import (
 
 from ..llm import create_client, default_base_url, default_model, normalize_base_url
 from ..llm.base import LLMError
+from ..i18n import choose
 from ..settings import PluginSettings
 
 
@@ -40,7 +41,7 @@ class SettingsDialog(QDialog):
     def __init__(self, parent, settings_manager):
         super().__init__(parent)
         self.settings_manager = settings_manager
-        self.setWindowTitle("QGIS AI Agent Settings")
+        self.setWindowTitle(choose("QGIS AI 助手设置", "QGIS AI Agent Settings"))
         self.resize(640, 520)
         self.worker_thread = None
         self.worker = None
@@ -48,8 +49,8 @@ class SettingsDialog(QDialog):
         config = self.settings_manager.load()
 
         self.provider_combo = QComboBox()
-        self.provider_combo.addItem("Disabled", "none")
-        self.provider_combo.addItem("Managed Backend", "managed_backend")
+        self.provider_combo.addItem(choose("禁用", "Disabled"), "none")
+        self.provider_combo.addItem(choose("托管后端", "Managed Backend"), "managed_backend")
         self.provider_combo.addItem("DeepSeek", "deepseek")
         self.provider_combo.addItem("Gemini", "gemini")
         self.provider_combo.addItem("OpenAI Compatible", "openai_compatible")
@@ -73,17 +74,17 @@ class SettingsDialog(QDialog):
         if config.model_name:
             self.model_combo.addItem(config.model_name, config.model_name)
 
-        self.fetch_models_button = QPushButton("获取模型")
+        self.fetch_models_button = QPushButton(choose("获取模型", "Fetch Models"))
         self.fetch_models_button.clicked.connect(self.fetch_models)
-        self.login_button = QPushButton("登录后端")
+        self.login_button = QPushButton(choose("登录后端", "Backend Login"))
         self.login_button.clicked.connect(self.login_backend)
-        self.test_button = QPushButton("测试连接")
+        self.test_button = QPushButton(choose("测试连接", "Test Connection"))
         self.test_button.clicked.connect(self.test_connection)
 
         self.timeout_spin = QSpinBox()
         self.timeout_spin.setRange(5, 600)
         self.timeout_spin.setValue(config.request_timeout)
-        self.allow_dynamic_processing_check = QCheckBox("允许调用当前 QGIS 中其他已安装算法（高级模式）")
+        self.allow_dynamic_processing_check = QCheckBox(choose("允许调用当前 QGIS 中其他已安装算法（高级模式）", "Allow additional installed QGIS algorithms (advanced mode)"))
         self.allow_dynamic_processing_check.setChecked(bool(config.allow_dynamic_processing))
         self.deepseek_thinking_check = QCheckBox("启用 DeepSeek thinking")
         self.deepseek_thinking_check.setChecked(bool(config.deepseek_enable_thinking))
@@ -91,25 +92,27 @@ class SettingsDialog(QDialog):
         self.deepseek_tool_calling_check.setChecked(bool(config.deepseek_use_tool_calling))
 
         self.chat_mode_combo = QComboBox()
-        self.chat_mode_combo.addItem("自动", "auto")
-        self.chat_mode_combo.addItem("问答", "qa")
-        self.chat_mode_combo.addItem("执行", "execute")
+        self.chat_mode_combo.addItem(choose("自动", "Auto"), "auto")
+        self.chat_mode_combo.addItem(choose("问答", "Q&A"), "qa")
+        self.chat_mode_combo.addItem(choose("执行", "Execute"), "execute")
         self._set_chat_mode(config.chat_mode)
 
         self.skill_edit = QTextEdit(config.skill_text or "")
-        self.skill_edit.setPlaceholderText("可选：填写你希望模型长期遵守的 skill，例如土地整治、国土调查、林业专题、企业内部规范等。")
+        self.skill_edit.setPlaceholderText(choose("可选：填写你希望模型长期遵守的 skill，例如土地整治、国土调查、林业专题、企业内部规范等。", "Optional: add long-term skills or domain rules for the model, such as land consolidation, cadastral survey, forestry topics, or internal standards."))
         self.skill_edit.setMinimumHeight(110)
 
         self.mcp_edit = QTextEdit(config.mcp_servers_text or "")
         self.mcp_edit.setPlaceholderText(
-            "可选：每行一个 MCP bridge URL。\n"
-            "插件会在规划前向这些 URL 发送 POST JSON，取回上下文再交给模型。"
+            choose(
+                "可选：每行一个 MCP bridge URL。\n插件会在规划前向这些 URL 发送 POST JSON，取回上下文再交给模型。",
+                "Optional: one MCP bridge URL per line.\nThe plugin will POST JSON to these URLs before planning and merge the returned context into the model prompt.",
+            )
         )
         self.mcp_edit.setMinimumHeight(90)
 
-        self.status_label = QLabel("填写地址和 API Key 后，可先测试连接，再选择模型。")
+        self.status_label = QLabel(choose("填写地址和 API Key 后，可先测试连接，再选择模型。", "After filling in the URL and API key, test the connection first and then choose a model."))
         self.status_label.setWordWrap(True)
-        self.secret_hint_label = QLabel("API Key、后端密码和访问令牌仅保留在本次 QGIS 会话中，不再写入本地配置。")
+        self.secret_hint_label = QLabel(choose("API Key、后端密码和访问令牌仅保留在本次 QGIS 会话中，不再写入本地配置。", "API keys, backend passwords, and access tokens are kept only for the current QGIS session and are not written to local settings."))
         self.secret_hint_label.setWordWrap(True)
 
         model_row = QWidget()
@@ -121,22 +124,22 @@ class SettingsDialog(QDialog):
         model_layout.addWidget(self.test_button)
 
         form_layout = QFormLayout()
-        form_layout.addRow("Provider", self.provider_combo)
+        form_layout.addRow(choose("服务提供方", "Provider"), self.provider_combo)
         form_layout.addRow("Base URL", self.base_url_edit)
         form_layout.addRow("API Key", self.api_key_edit)
-        form_layout.addRow("Backend Username", self.backend_username_edit)
-        form_layout.addRow("Backend Password", self.backend_password_edit)
-        form_layout.addRow("Backend Token", self.backend_token_edit)
-        form_layout.addRow("Model", model_row)
-        form_layout.addRow("Timeout (s)", self.timeout_spin)
-        form_layout.addRow("Advanced", self.allow_dynamic_processing_check)
+        form_layout.addRow(choose("后端用户名", "Backend Username"), self.backend_username_edit)
+        form_layout.addRow(choose("后端密码", "Backend Password"), self.backend_password_edit)
+        form_layout.addRow(choose("后端令牌", "Backend Token"), self.backend_token_edit)
+        form_layout.addRow(choose("模型", "Model"), model_row)
+        form_layout.addRow(choose("超时（秒）", "Timeout (s)"), self.timeout_spin)
+        form_layout.addRow(choose("高级选项", "Advanced"), self.allow_dynamic_processing_check)
         form_layout.addRow("DeepSeek", self.deepseek_thinking_check)
         form_layout.addRow("", self.deepseek_tool_calling_check)
-        form_layout.addRow("Default Mode", self.chat_mode_combo)
+        form_layout.addRow(choose("默认模式", "Default Mode"), self.chat_mode_combo)
         form_layout.addRow("Skills", self.skill_edit)
         form_layout.addRow("MCP Bridge URLs", self.mcp_edit)
-        form_layout.addRow("Status", self.status_label)
-        form_layout.addRow("Security", self.secret_hint_label)
+        form_layout.addRow(choose("状态", "Status"), self.status_label)
+        form_layout.addRow(choose("安全说明", "Security"), self.secret_hint_label)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)

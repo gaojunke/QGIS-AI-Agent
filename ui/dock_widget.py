@@ -7,6 +7,7 @@ from qgis.core import QgsProject
 
 from ..context import LocalQueryService, ProjectContextBuilder
 from ..executor import AmbiguousLayerReferenceError, ExecutionCancelledError, MissingLayerReferenceError, PlanExecutor
+from ..i18n import choose
 from ..planner import CommandPlanner
 from ..style_standards import StyleStandardRegistry
 from ..tool_registry import ToolRegistry
@@ -50,7 +51,7 @@ class PlannerWorker(QObject):
 
 class NlQgisDockWidget(QDockWidget):
     def __init__(self, iface, settings_manager, parent=None, open_settings_callback=None):
-        super().__init__("QGIS AI Agent", parent or iface.mainWindow())
+        super().__init__(choose("QGIS AI 助手", "QGIS AI Agent"), parent or iface.mainWindow())
         self.iface = iface
         self.settings_manager = settings_manager
         self.open_settings_callback = open_settings_callback
@@ -85,19 +86,19 @@ class NlQgisDockWidget(QDockWidget):
         self.setWidget(container)
 
         self.mode_combo = QComboBox()
-        self.mode_combo.addItem("自动", "auto")
-        self.mode_combo.addItem("问答", "qa")
-        self.mode_combo.addItem("执行", "execute")
+        self.mode_combo.addItem(choose("自动", "Auto"), "auto")
+        self.mode_combo.addItem(choose("问答", "Q&A"), "qa")
+        self.mode_combo.addItem(choose("执行", "Execute"), "execute")
         self._set_mode_value(self.settings_manager.load().chat_mode)
         self.mode_combo.currentIndexChanged.connect(self._persist_mode)
 
-        self.recent_button = QPushButton("最近操作")
+        self.recent_button = QPushButton(choose("最近操作", "Recent"))
         self.recent_button.clicked.connect(self.show_recent_operations)
-        self.settings_button = QPushButton("API设置")
+        self.settings_button = QPushButton(choose("API设置", "API Settings"))
         self.settings_button.clicked.connect(self.open_settings_dialog)
-        self.clear_button = QPushButton("清空聊天")
+        self.clear_button = QPushButton(choose("清空聊天", "Clear Chat"))
         self.clear_button.clicked.connect(self.clear_chat_history)
-        self.cancel_button = QPushButton("取消")
+        self.cancel_button = QPushButton(choose("取消", "Cancel"))
         self.cancel_button.clicked.connect(self.cancel_active_operation)
         self.cancel_button.setEnabled(False)
 
@@ -113,14 +114,14 @@ class NlQgisDockWidget(QDockWidget):
         self.chat_view = ChatMessageList()
 
         self.command_edit = ChatInputEdit()
-        self.command_edit.setPlaceholderText("输入你的 QGIS 命令，例如：把道路图层和行政区图层相交")
+        self.command_edit.setPlaceholderText(choose("输入你的 QGIS 命令，例如：把道路图层和行政区图层相交", "Enter a QGIS command, for example: intersect the roads layer with the administrative boundary layer"))
         self.command_edit.setFixedHeight(86)
         self.command_edit.setStyleSheet(
             "QPlainTextEdit { background: #ffffff; border: 1px solid #d1d5db; border-radius: 10px; padding: 8px; }"
         )
         self.command_edit.send_requested.connect(self.send_command)
 
-        self.send_button = QPushButton("发送")
+        self.send_button = QPushButton(choose("发送", "Send"))
         self.send_button.clicked.connect(self.send_command)
         self.send_button.setFixedWidth(84)
         self.send_button.setStyleSheet(
@@ -147,7 +148,7 @@ class NlQgisDockWidget(QDockWidget):
         else:
             self._append_message(
                 "assistant",
-                "直接输入命令即可执行。你也可以把模式切到“问答”或“执行”。按 Enter 发送，Shift+Enter 换行。",
+                choose("直接输入命令即可执行。你也可以把模式切到“问答”或“执行”。按 Enter 发送，Shift+Enter 换行。", "Enter a command to run it directly. You can also switch to Q&A or Execute mode. Press Enter to send and Shift+Enter for a new line."),
             )
 
         self._connect_project_signals()
@@ -164,7 +165,7 @@ class NlQgisDockWidget(QDockWidget):
 
     def send_command(self):
         if self.pending_resolution is not None:
-            self._append_message("assistant", "请先完成当前图层选择，再继续发送新命令。", kind="info")
+            self._append_message("assistant", choose("请先完成当前图层选择，再继续发送新命令。", "Please finish the current layer selection before sending a new command."), kind="info")
             return
 
         command_text = self.command_edit.toPlainText().strip()
@@ -195,11 +196,11 @@ class NlQgisDockWidget(QDockWidget):
                 self.conversation_memory["last_query_kind"] = self.query_service.last_query_kind or self.conversation_memory.get("last_query_kind", "")
                 self._append_message("assistant", local_answer)
                 self._set_busy(False)
-                self._set_status_message("本地问答已完成。")
+                self._set_status_message(choose("本地问答已完成。", "Local answer completed."))
                 return
 
             if config.provider in {"deepseek", "openai_compatible", "gemini"} and not config.api_key:
-                raise ValueError("当前模型需要 API Key，请先在 Agent Settings 中完成配置并测试连接。")
+                raise ValueError(choose("当前模型需要 API Key，请先在 Agent Settings 中完成配置并测试连接。", "The current model requires an API key. Please configure it in Model/API Settings and test the connection first."))
 
             self._start_planning_worker(command_text, working_context, config, request_mode)
         except Exception as exc:
@@ -241,7 +242,7 @@ class NlQgisDockWidget(QDockWidget):
                 self.conversation_memory["last_query_kind"] = "qa"
                 self._append_message("assistant", self._answer_summary(result))
                 self._set_busy(False)
-                self._set_status_message("问答已完成。")
+                self._set_status_message(choose("问答已完成。", "Answer completed."))
                 return
 
             self._append_message("assistant", self._plan_summary(result))
@@ -263,10 +264,10 @@ class NlQgisDockWidget(QDockWidget):
         self._set_status_message("规划失败。")
 
     def _handle_planning_cancelled(self):
-        self._append_message("assistant", "已取消当前规划。", kind="info")
+        self._append_message("assistant", choose("已取消当前规划。", "The current planning task was cancelled."), kind="info")
         if self.pending_resolution is None:
             self._set_busy(False)
-        self._set_status_message("规划已取消。")
+        self._set_status_message(choose("规划已取消。", "Planning cancelled."))
 
     def _cleanup_planning_worker(self):
         if self.planner_worker is not None:
@@ -279,10 +280,10 @@ class NlQgisDockWidget(QDockWidget):
     def show_recent_operations(self):
         operations = self.settings_manager.load_recent_operations()
         if not operations:
-            self._append_message("assistant", "最近还没有执行记录。", kind="info")
+            self._append_message("assistant", choose("最近还没有执行记录。", "There are no recent operations yet."), kind="info")
             return
         recent_items = operations[-8:]
-        lines = ["点击下面的命令可复用到输入框："]
+        lines = [choose("点击下面的命令可复用到输入框：", "Click a command below to reuse it in the input box:")]
         actions = []
         for index, item in enumerate(recent_items):
             label = "{} | {}".format(item.get("time", ""), item.get("summary", ""))
@@ -310,7 +311,7 @@ class NlQgisDockWidget(QDockWidget):
         }
         self._append_message(
             "assistant",
-            "聊天记录已清空。直接输入命令即可执行，或切换到问答模式。",
+            choose("聊天记录已清空。直接输入命令即可执行，或切换到问答模式。", "Chat history has been cleared. Enter a command to run it directly, or switch to Q&A mode."),
             kind="info",
         )
 
@@ -337,7 +338,7 @@ class NlQgisDockWidget(QDockWidget):
             "存在歧义，请在下面选择具体图层。" if isinstance(issue, AmbiguousLayerReferenceError) else "未找到，请在下面选择替代图层。",
         )
         actions = [{"id": "layer:{}".format(name), "label": name} for name in options]
-        actions.append({"id": "layer_cancel", "label": "取消本次执行"})
+        actions.append({"id": "layer_cancel", "label": choose("取消本次执行", "Cancel this run")})
         self._append_message(
             "assistant",
             prompt,
@@ -354,10 +355,10 @@ class NlQgisDockWidget(QDockWidget):
         if self.pending_resolution is None:
             return
         if action_id == "layer_cancel":
-            self._append_message("assistant", "已取消本次执行。")
+            self._append_message("assistant", choose("已取消本次执行。", "This execution has been cancelled."))
             self.pending_resolution = None
             self._set_busy(False)
-            self._set_status_message("执行已取消。")
+            self._set_status_message(choose("执行已取消。", "Execution cancelled."))
             return
 
         selected_layer = action_id.split(":", 1)[1]
@@ -387,19 +388,19 @@ class NlQgisDockWidget(QDockWidget):
             self._set_busy(False)
             answer = QMessageBox.question(
                 self,
-                "确认执行",
-                "该命令包含需要确认的操作，是否继续？",
+                choose("确认执行", "Confirm Execution"),
+                choose("该命令包含需要确认的操作，是否继续？", "This command contains operations that require confirmation. Continue?"),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
             if answer != QMessageBox.Yes:
-                self._append_message("assistant", "已取消执行。")
-                self._set_status_message("执行已取消。")
+                self._append_message("assistant", choose("已取消执行。", "Execution cancelled."))
+                self._set_status_message(choose("执行已取消。", "Execution cancelled."))
                 return
             self._set_busy(True)
 
         self.execution_cancel_requested = False
-        self._set_status_message("正在执行计划...")
+        self._set_status_message(choose("正在执行计划...", "Executing plan..."))
         try:
             report = self.executor.execute(
                 plan,
@@ -415,18 +416,18 @@ class NlQgisDockWidget(QDockWidget):
             self.conversation_memory["last_query_kind"] = "operation"
             self._append_message("assistant", self._execution_summary(report))
             self._record_recent_operation(command_text, plan, report)
-            self._set_status_message("执行完成。")
+            self._set_status_message(choose("执行完成。", "Execution completed."))
         except ExecutionCancelledError:
-            self._append_message("assistant", "已取消当前执行。", kind="info")
-            self._set_status_message("执行已取消。")
+            self._append_message("assistant", choose("已取消当前执行。", "The current execution was cancelled."), kind="info")
+            self._set_status_message(choose("执行已取消。", "Execution cancelled."))
         except Exception as exc:
             self._append_message("assistant", self._format_error(exc), kind="error")
-            self._set_status_message("执行失败。")
+            self._set_status_message(choose("执行失败。", "Execution failed."))
         finally:
             self._set_busy(False)
 
     def _plan_summary(self, planning_result):
-        lines = ["准备执行以下操作:"]
+        lines = [choose("准备执行以下操作:", "The following operations are ready to run:")]
         for index, step in enumerate(planning_result.plan.steps, start=1):
             lines.append("{}. {}".format(index, self._describe_step(step)))
         return "\n".join(lines)
@@ -436,25 +437,25 @@ class NlQgisDockWidget(QDockWidget):
         if planning_result.plan.response_text:
             lines.append(planning_result.plan.response_text)
         else:
-            lines.append("这是一个问答型请求。")
-        lines.append("未对图层和工程做任何操作。")
+            lines.append(choose("这是一个问答型请求。", "This is an informational request."))
+        lines.append(choose("未对图层和工程做任何操作。", "No layer or project operation was performed."))
         return "\n".join(lines)
 
     def _reasoning_summary(self, reasoning_text: str):
         text = (reasoning_text or "").strip()
         if not text:
             return ""
-        return "DeepSeek 规划说明:\n{}".format(self._truncate_text(text, 900))
+        return choose("DeepSeek 规划说明:\n{}", "DeepSeek planning notes:\n{}").format(self._truncate_text(text, 900))
 
     def _execution_summary(self, report):
-        lines = ["执行完成。"]
+        lines = [choose("执行完成。", "Execution completed.")]
         if report.added_layers:
-            lines.append("结果图层: {}".format(", ".join(report.added_layers)))
+            lines.append(choose("结果图层: {}", "Result layers: {}").format(", ".join(report.added_layers)))
         if report.undo_hint:
-            lines.append("回退建议: {}".format(report.undo_hint))
+            lines.append(choose("回退建议: {}", "Undo hint: {}").format(report.undo_hint))
         if report.logs:
             lines.append("")
-            lines.append("执行记录:")
+            lines.append(choose("执行记录:", "Execution log:"))
             lines.extend(report.logs)
         return "\n".join(lines)
 
@@ -538,7 +539,7 @@ class NlQgisDockWidget(QDockWidget):
         cursor = self.command_edit.textCursor()
         cursor.movePosition(QTextCursor.End)
         self.command_edit.setTextCursor(cursor)
-        self._append_message("assistant", "已将历史命令填入输入框，可直接修改后发送。", kind="info")
+        self._append_message("assistant", choose("已将历史命令填入输入框，可直接修改后发送。", "The historical command has been filled into the input box. You can edit it and send it again."), kind="info")
 
     def _format_error(self, exc: Exception):
         if isinstance(exc, AmbiguousLayerReferenceError):
@@ -676,7 +677,7 @@ class NlQgisDockWidget(QDockWidget):
     def _set_busy(self, busy: bool):
         self.send_button.setEnabled(not busy)
         self.command_edit.setReadOnly(busy)
-        self.send_button.setText("处理中..." if busy else "发送")
+        self.send_button.setText(choose("处理中...", "Working...") if busy else choose("发送", "Send"))
         self.cancel_button.setEnabled(busy)
         if busy:
             QApplication.setOverrideCursor(Qt.WaitCursor)
@@ -687,7 +688,7 @@ class NlQgisDockWidget(QDockWidget):
         self.execution_cancel_requested = True
         if self.planner_worker is not None and hasattr(self.planner_worker, "cancel_requested"):
             self.planner_worker.cancel_requested = True
-        self._set_status_message("已收到取消请求，正在停止...")
+        self._set_status_message(choose("已收到取消请求，正在停止...", "Cancellation requested. Stopping..."))
 
     def _remember_user_command(self, command_text: str):
         commands = list(self.conversation_memory.get("recent_user_commands") or [])
@@ -765,7 +766,7 @@ class NlQgisDockWidget(QDockWidget):
         self._set_status_message(cleaned)
 
     def _set_status_message(self, text: str):
-        message = (text or "").strip() or "处理中..."
+        message = (text or "").strip() or choose("处理中...", "Working...")
         if self.status_item is None:
             self.status_item = self.chat_view.add_message("assistant", message, kind="status")
             return

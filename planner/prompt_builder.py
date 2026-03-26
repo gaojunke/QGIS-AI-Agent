@@ -1,5 +1,7 @@
 import json
 
+from ..i18n import preferred_language_name
+
 
 SYSTEM_PROMPT = """
 You are a QGIS planning agent.
@@ -22,10 +24,11 @@ Rules:
 12. If interaction mode is "qa", always answer with steps=[].
 13. If interaction mode is "execute", prefer action steps. Only use steps=[] when the request truly cannot or should not perform a QGIS action.
 14. Use field names from project context when the user mentions attribute filters, expressions, or field-based logic.
+15. Use the preferred response language provided in the prompt for summary, response_text, and notes.
 
 JSON schema:
 {
-  "summary": "short Chinese summary",
+  "summary": "short summary in the preferred language",
   "requires_confirmation": true,
   "response_text": "answer for informational requests; otherwise optional",
   "steps": [
@@ -73,13 +76,16 @@ def build_user_prompt(
 ) -> str:
     memory = conversation_memory or {}
     sections = [
-        "交互模式:",
+        "Preferred response language:",
+        preferred_language_name(),
+        "",
+        "Interaction mode:",
         request_mode,
         "",
-        "用户命令:",
+        "User command:",
         command_text.strip(),
         "",
-        "最近会话记忆(JSON):",
+        "Recent conversation memory (JSON):",
         json.dumps(
             {
                 "last_layer_name": memory.get("last_layer_name", ""),
@@ -94,11 +100,11 @@ def build_user_prompt(
         "",
     ]
     if skill_text.strip():
-        sections.extend(["启用的 Skills:", skill_text.strip(), ""])
+        sections.extend(["Enabled skills:", skill_text.strip(), ""])
     if mcp_contexts:
-        sections.append("MCP Bridge 上下文:")
+        sections.append("MCP bridge context:")
         for item in mcp_contexts:
-            sections.append("- 来源: {}".format(item.get("url", "")))
+            sections.append("- Source: {}".format(item.get("url", "")))
             sections.append(item.get("text", ""))
         sections.append("")
     if style_standards_text.strip():
@@ -107,7 +113,7 @@ def build_user_prompt(
         [
             registry.prompt_catalog_text(allow_dynamic_processing=allow_dynamic_processing),
             "",
-            "当前工程上下文(JSON):",
+            "Current project context (JSON):",
             json.dumps(project_context, ensure_ascii=False, indent=2),
         ]
     )

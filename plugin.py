@@ -4,6 +4,7 @@ from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
 
+from .i18n import choose
 from .settings import SettingsManager
 from .ui.dock_widget import NlQgisDockWidget
 from .ui.settings_dialog import SettingsDialog
@@ -21,10 +22,10 @@ class NaturalLanguageQgisAgentPlugin:
 
     def initGui(self):
         icon = QIcon(self._icon_path())
-        self.toolbar_action = QAction(icon, "QGIS AI Agent", self.iface.mainWindow())
+        self.toolbar_action = QAction(icon, choose("QGIS AI 助手", "QGIS AI Agent"), self.iface.mainWindow())
         self.toolbar_action.triggered.connect(self.show_dock)
 
-        self.settings_action = QAction("Agent Settings", self.iface.mainWindow())
+        self.settings_action = QAction(choose("模型/API设置", "Model/API Settings"), self.iface.mainWindow())
         self.settings_action.triggered.connect(self.show_settings)
 
         self.iface.addToolBarIcon(self.toolbar_action)
