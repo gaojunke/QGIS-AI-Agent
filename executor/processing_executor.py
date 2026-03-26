@@ -5,6 +5,7 @@ from pathlib import Path
 
 from qgis.core import QgsProcessingContext, QgsProcessingFeedback, QgsProject, QgsRasterLayer, QgsVectorLayer
 
+from ..i18n import choose
 from .errors import AmbiguousLayerReferenceError, ExecutionCancelledError, MissingLayerReferenceError
 from .qgis_api_executor import QgisApiExecutor
 
@@ -90,11 +91,11 @@ class PlanExecutor:
 
         for index, step in enumerate(plan.steps, start=1):
             if is_cancelled and is_cancelled():
-                raise ExecutionCancelledError("用户已取消执行。")
+                raise ExecutionCancelledError(choose("用户已取消执行。", "Execution was cancelled by the user."))
             self.registry.validate_step(step, allow_dynamic_processing=allow_dynamic_processing)
             step_key = "step_{}".format(index)
             label = step.label or step.tool_id or step.operation or step_key
-            log("开始执行步骤 {}: {}".format(index, label))
+            log(choose("开始执行步骤 {}: {}", "Starting step {}: {}").format(index, label))
             report.operation_summary.append(label)
 
             if step.kind == "processing":
@@ -102,7 +103,7 @@ class PlanExecutor:
                 result = processing.run(step.tool_id, params, context=context, feedback=feedback)
                 step_results[step_key] = result
                 last_result_value = self._pick_primary_output(result)
-                log("算法执行完成: {}".format(step.tool_id))
+                log(choose("算法执行完成: {}", "Algorithm finished: {}").format(step.tool_id))
                 added = self._add_output_layers(result, context, log)
                 report.added_layers.extend(added)
             else:
@@ -193,7 +194,7 @@ class PlanExecutor:
                     QgsProject.instance().addMapLayer(layer)
                 if layer.id() not in seen_layer_ids:
                     added_layers.append(layer.name())
-                    log("已将结果图层加入地图: {}".format(layer.name()))
+                    log(choose("已将结果图层加入地图: {}", "Added result layer to the map: {}").format(layer.name()))
                     seen_layer_ids.add(layer.id())
         return added_layers
 
@@ -222,7 +223,7 @@ class PlanExecutor:
 
     def _resolve_layer_reference(self, layer_ref: str, project_context: dict, raise_on_partial: bool = True):
         if not layer_ref:
-            raise MissingLayerReferenceError(layer_ref, "缺少图层引用。")
+            raise MissingLayerReferenceError(layer_ref, choose("缺少图层引用。", "Missing layer reference."))
 
         project = QgsProject.instance()
         direct = project.mapLayer(layer_ref)
@@ -242,7 +243,7 @@ class PlanExecutor:
         if len(partial_matches) > 1 and raise_on_partial:
             raise AmbiguousLayerReferenceError(
                 layer_ref,
-                "图层引用 '{}' 存在歧义。".format(layer_ref),
+                choose("图层引用 '{}' 存在歧义。", "The layer reference '{}' is ambiguous.").format(layer_ref),
                 [layer["name"] for layer in partial_matches],
             )
 
@@ -254,7 +255,7 @@ class PlanExecutor:
         )
         raise MissingLayerReferenceError(
             layer_ref,
-            "未找到图层 '{}'。".format(layer_ref),
+            choose("未找到图层 '{}'。", "Layer '{}' was not found.").format(layer_ref),
             suggestions,
         )
 
@@ -293,15 +294,15 @@ class PlanExecutor:
     def _build_undo_hint(self, plan, report: ExecutionReport) -> str:
         hints = []
         if report.added_layers:
-            hints.append("如需回退，可删除结果图层: {}。".format(", ".join(report.added_layers)))
+            hints.append(choose("如需回退，可删除结果图层: {}。", "To undo, delete the result layers: {}.").format(", ".join(report.added_layers)))
         for step in plan.steps:
             if step.kind == "qgis":
                 if step.operation == "rename_layer":
-                    hints.append("如需回退重命名，请将图层名称改回原值。")
+                    hints.append(choose("如需回退重命名，请将图层名称改回原值。", "To undo the rename, change the layer name back to its original value."))
                 elif step.operation == "set_layer_visibility":
-                    hints.append("如需回退显示状态，请切换图层可见性。")
+                    hints.append(choose("如需回退显示状态，请切换图层可见性。", "To undo the visibility change, switch the layer visibility again."))
                 elif step.operation == "remove_layer":
-                    hints.append("删除图层后无法自动恢复，如需回退请重新加载该图层。")
+                    hints.append(choose("删除图层后无法自动恢复，如需回退请重新加载该图层。", "Deleted layers cannot be restored automatically. Reload the layer if you need to undo this step."))
                 elif step.operation == "select_by_expression":
-                    hints.append("如需回退选择，请执行清除选择。")
+                    hints.append(choose("如需回退选择，请执行清除选择。", "To undo the selection, run clear selection."))
         return "\n".join(dict.fromkeys(hints))

@@ -178,7 +178,7 @@ class NlQgisDockWidget(QDockWidget):
 
         self.execution_cancel_requested = False
         self._set_busy(True)
-        self._set_status_message("正在读取工程上下文...")
+        self._set_status_message(choose("正在读取工程上下文...", "Reading project context..."))
         self.pending_command_text = command_text
         QTimer.singleShot(0, lambda text=command_text: self._prepare_command(text))
 
@@ -207,7 +207,7 @@ class NlQgisDockWidget(QDockWidget):
             self._append_message("assistant", self._format_error(exc), kind="error")
             if self.pending_resolution is None:
                 self._set_busy(False)
-            self._set_status_message("命令准备失败。")
+            self._set_status_message(choose("命令准备失败。", "Command preparation failed."))
 
     def _start_planning_worker(self, command_text: str, project_context: dict, config, request_mode: str):
         self._cleanup_planning_worker()
@@ -255,13 +255,13 @@ class NlQgisDockWidget(QDockWidget):
             self._append_message("assistant", self._format_error(exc), kind="error")
             if self.pending_resolution is None:
                 self._set_busy(False)
-            self._set_status_message("规划结果处理失败。")
+            self._set_status_message(choose("规划结果处理失败。", "Failed to process the planning result."))
 
     def _handle_planning_error(self, exc):
         self._append_message("assistant", self._format_error(exc), kind="error")
         if self.pending_resolution is None:
             self._set_busy(False)
-        self._set_status_message("规划失败。")
+        self._set_status_message(choose("规划失败。", "Planning failed."))
 
     def _handle_planning_cancelled(self):
         self._append_message("assistant", choose("已取消当前规划。", "The current planning task was cancelled."), kind="info")
@@ -333,9 +333,14 @@ class NlQgisDockWidget(QDockWidget):
             "command_text": command_text,
             "reference": issue.reference,
         }
-        prompt = "图层引用“{}”{}".format(
+        prompt = choose(
+            '图层引用“{}”{}',
+            'The layer reference "{}" {}',
+        ).format(
             issue.reference,
-            "存在歧义，请在下面选择具体图层。" if isinstance(issue, AmbiguousLayerReferenceError) else "未找到，请在下面选择替代图层。",
+            choose("存在歧义，请在下面选择具体图层。", "is ambiguous. Choose the specific layer below.")
+            if isinstance(issue, AmbiguousLayerReferenceError)
+            else choose("未找到，请在下面选择替代图层。", "was not found. Choose a replacement layer below."),
         )
         actions = [{"id": "layer:{}".format(name), "label": name} for name in options]
         actions.append({"id": "layer_cancel", "label": choose("取消本次执行", "Cancel this run")})
@@ -348,7 +353,7 @@ class NlQgisDockWidget(QDockWidget):
             action_handler=self._handle_layer_resolution_action,
         )
         self._set_busy(False)
-        self._set_status_message("等待图层选择...")
+        self._set_status_message(choose("等待图层选择...", "Waiting for layer selection..."))
         return True
 
     def _handle_layer_resolution_action(self, action_id: str):
@@ -362,7 +367,7 @@ class NlQgisDockWidget(QDockWidget):
             return
 
         selected_layer = action_id.split(":", 1)[1]
-        self._append_message("assistant", "已选择图层“{}”。".format(selected_layer), kind="info")
+        self._append_message("assistant", choose('已选择图层“{}”。', 'Selected layer "{}".').format(selected_layer), kind="info")
         self._set_busy(True)
         try:
             plan = self.executor.apply_layer_selection(
@@ -468,11 +473,11 @@ class NlQgisDockWidget(QDockWidget):
                     if key in step.params:
                         refs.append("{}={}".format(key, self._describe_value(step.params[key])))
                 if "EXPRESSION" in step.params:
-                    refs.append("表达式={}".format(step.params["EXPRESSION"]))
+                    refs.append(choose("表达式={}", "expression={}").format(step.params["EXPRESSION"]))
                 if "DISTANCE" in step.params:
-                    refs.append("距离={}".format(step.params["DISTANCE"]))
+                    refs.append(choose("距离={}", "distance={}").format(step.params["DISTANCE"]))
                 if "TARGET_CRS" in step.params:
-                    refs.append("目标坐标系={}".format(step.params["TARGET_CRS"]))
+                    refs.append(choose("目标坐标系={}", "target CRS={}").format(step.params["TARGET_CRS"]))
                 if refs:
                     parts.append(" | " + ", ".join(refs))
             return "".join(parts)
@@ -491,7 +496,7 @@ class NlQgisDockWidget(QDockWidget):
             if "layer" in value:
                 return value["layer"]
             if "result" in value:
-                return "上一步结果"
+                return choose("上一步结果", "previous result")
         if isinstance(value, list):
             return "[" + ", ".join(self._describe_value(item) for item in value) + "]"
         return str(value)
@@ -544,132 +549,132 @@ class NlQgisDockWidget(QDockWidget):
     def _format_error(self, exc: Exception):
         if isinstance(exc, AmbiguousLayerReferenceError):
             return self._error_message(
-                title="图层匹配存在歧义",
-                reason="命令里的图层引用“{}”同时匹配到了多个图层。".format(exc.reference),
+                title=choose("图层匹配存在歧义", "Ambiguous layer match"),
+                reason=choose('命令里的图层引用“{}”同时匹配到了多个图层。', 'The layer reference "{}" matched multiple layers in the project.').format(exc.reference),
                 suggestions=[
-                    "直接在聊天里的候选按钮中选择一个图层。",
-                    "把命令改得更具体，例如写完整图层名。",
-                    "如果图层名很像，先把图层重命名后再执行。",
+                    choose("直接在聊天里的候选按钮中选择一个图层。", "Select one of the candidate layers directly from the chat buttons."),
+                    choose("把命令改得更具体，例如写完整图层名。", "Make the command more specific, for example by using the full layer name."),
+                    choose("如果图层名很像，先把图层重命名后再执行。", "If several layer names are similar, rename them first and then run the command again."),
                 ],
-                detail="可选图层: {}".format(", ".join(exc.candidates)) if exc.candidates else "",
+                detail=choose("可选图层: {}", "Candidate layers: {}").format(", ".join(exc.candidates)) if exc.candidates else "",
             )
         if isinstance(exc, MissingLayerReferenceError):
             return self._error_message(
-                title="未找到图层",
-                reason="当前工程中没有找到“{}”这个图层引用。".format(exc.reference),
+                title=choose("未找到图层", "Layer not found"),
+                reason=choose('当前工程中没有找到“{}”这个图层引用。', 'The layer reference "{}" was not found in the current project.').format(exc.reference),
                 suggestions=[
-                    "检查图层是否已经加载到当前工程。",
-                    "把命令里的图层名改成工程中显示的精确名称。",
-                    "如果只是简称，尽量写完整图层名。",
+                    choose("检查图层是否已经加载到当前工程。", "Check whether the layer has already been loaded into the current project."),
+                    choose("把命令里的图层名改成工程中显示的精确名称。", "Change the layer name in the command to the exact name shown in the project."),
+                    choose("如果只是简称，尽量写完整图层名。", "If you used a short name, try the full layer name."),
                 ],
-                detail="建议图层: {}".format(", ".join(exc.candidates)) if exc.candidates else "",
+                detail=choose("建议图层: {}", "Suggested layers: {}").format(", ".join(exc.candidates)) if exc.candidates else "",
             )
         message = str(exc)
         if "HTTP" in message or "Network error" in message:
             return self._error_message(
-                title="模型连接失败",
-                reason="插件无法连接到当前配置的模型服务。",
+                title=choose("模型连接失败", "Model connection failed"),
+                reason=choose("插件无法连接到当前配置的模型服务。", "The plugin could not connect to the currently configured model service."),
                 suggestions=[
-                    "在 Agent Settings 里重新测试连接。",
-                    "检查 Base URL、API Key 和所选模型是否正确。",
-                    "如果是本地模型，确认服务已经启动。",
+                    choose("在 Agent Settings 里重新测试连接。", "Retest the connection in Model/API Settings."),
+                    choose("检查 Base URL、API Key 和所选模型是否正确。", "Check whether the Base URL, API key, and selected model are correct."),
+                    choose("如果是本地模型，确认服务已经启动。", "If you are using a local model, make sure the service is already running."),
                 ],
                 detail=message,
             )
         if "JSON" in message or "LLM 规划失败" in message:
             return self._error_message(
-                title="模型返回格式异常",
-                reason="模型返回了插件无法解析的内容，没能形成可执行计划。",
+                title=choose("模型返回格式异常", "Unexpected model response format"),
+                reason=choose("模型返回了插件无法解析的内容，没能形成可执行计划。", "The model returned content that the plugin could not parse into an executable plan."),
                 suggestions=[
-                    "把命令写得更直接，例如“把A图层和B图层相交”。",
-                    "避免一条命令里混入过多目标，先拆成两句试一次。",
-                    "在设置里重新测试当前模型是否正常可用。",
+                    choose("把命令写得更直接，例如“把A图层和B图层相交”。", 'Write the command more directly, for example "intersect layer A with layer B."'),
+                    choose("避免一条命令里混入过多目标，先拆成两句试一次。", "Avoid mixing too many goals into one command. Try splitting it into two commands first."),
+                    choose("在设置里重新测试当前模型是否正常可用。", "Retest whether the current model is working correctly in settings."),
                 ],
                 detail=message,
             )
         if "无法解析该命令" in message or "规则解析" in message:
             return self._error_message(
-                title="命令解析失败",
-                reason="插件没能把这句话稳定映射成问答或 QGIS 操作步骤。",
+                title=choose("命令解析失败", "Command parsing failed"),
+                reason=choose("插件没能把这句话稳定映射成问答或 QGIS 操作步骤。", "The plugin could not reliably map this sentence into a Q&A response or QGIS operation steps."),
                 suggestions=[
-                    "把命令改成“动词 + 图层名”的形式。",
-                    "例如：把道路图层和行政区图层相交。",
-                    "如果涉及多个步骤，用“然后”分开写。",
+                    choose("把命令改成“动词 + 图层名”的形式。", 'Rewrite the command in a "verb + layer name" form.'),
+                    choose("例如：把道路图层和行政区图层相交。", "For example: intersect the roads layer with the administrative boundary layer."),
+                    choose("如果涉及多个步骤，用“然后”分开写。", 'If multiple steps are involved, separate them with "then".'),
                 ],
                 detail=message,
             )
         if "rename_layer 缺少有效图层或名称" in message:
             return self._error_message(
-                title="重命名步骤参数不完整",
-                reason="计划里包含了重命名图层，但没有拿到有效的目标图层或新名称。",
+                title=choose("重命名步骤参数不完整", "Rename step parameters are incomplete"),
+                reason=choose("计划里包含了重命名图层，但没有拿到有效的目标图层或新名称。", "The plan includes a rename step, but it did not get a valid target layer or new name."),
                 suggestions=[
-                    "把命令改成：把结果重命名为 相交1。",
-                    "如果要给上一步结果命名，先确认前一步确实会生成结果图层。",
-                    "也可以拆开说：先相交，然后把结果重命名为 相交1。",
+                    choose("把命令改成：把结果重命名为 相交1。", 'Rewrite the command as: rename the result to "相交1".'),
+                    choose("如果要给上一步结果命名，先确认前一步确实会生成结果图层。", "If you want to name the previous result, first confirm that the previous step actually creates a result layer."),
+                    choose("也可以拆开说：先相交，然后把结果重命名为 相交1。", 'You can also split it up: first intersect, then rename the result to "相交1".'),
                 ],
                 detail=message,
             )
         if "fieldcalculator" in message.lower() or "字段计算" in message:
             return self._error_message(
-                title="字段计算失败",
-                reason="面积或字段计算步骤执行失败，通常是图层类型、字段配置或表达式不满足要求。",
+                title=choose("字段计算失败", "Field calculation failed"),
+                reason=choose("面积或字段计算步骤执行失败，通常是图层类型、字段配置或表达式不满足要求。", "The area or field calculation step failed, usually because the layer type, field configuration, or expression does not meet the requirements."),
                 suggestions=[
-                    "确认目标图层是矢量图层。",
-                    "如果是算面积，尽量写成：给地块图层计算面积并保存到字段 area。",
-                    "如果需要平方米结果，先确认图层坐标系是否适合面积计算。",
+                    choose("确认目标图层是矢量图层。", "Confirm that the target layer is a vector layer."),
+                    choose("如果是算面积，尽量写成：给地块图层计算面积并保存到字段 area。", 'If you are calculating area, try writing: calculate area for the parcel layer and save it to field "area".'),
+                    choose("如果需要平方米结果，先确认图层坐标系是否适合面积计算。", "If you need square-meter results, first confirm that the layer CRS is suitable for area calculation."),
                 ],
                 detail=message,
             )
         if "set_layer_color" in message or "set_categorized_renderer" in message or "符号化" in message or "分类渲染" in message:
             return self._error_message(
-                title="图层符号化失败",
-                reason="当前命令没有成功转换成可用的图层样式，或图层本身不支持该符号化方式。",
+                title=choose("图层符号化失败", "Layer symbology failed"),
+                reason=choose("当前命令没有成功转换成可用的图层样式，或图层本身不支持该符号化方式。", "The current command did not convert into a usable layer style, or the layer itself does not support that symbology mode."),
                 suggestions=[
-                    "单色渲染可写成：把地块图层符号化成红色。",
-                    "分类渲染可写成：把地块图层按字段 dlbm 分类渲染。",
-                    "先确认字段名在该图层中真实存在。",
+                    choose("单色渲染可写成：把地块图层符号化成红色。", 'For single-color rendering, try: symbolize the parcel layer in red.'),
+                    choose("分类渲染可写成：把地块图层按字段 dlbm 分类渲染。", 'For categorized rendering, try: categorize the parcel layer by field "dlbm".'),
+                    choose("先确认字段名在该图层中真实存在。", "First confirm that the field name actually exists in the layer."),
                 ],
                 detail=message,
             )
         if "当前 QGIS 中未找到 Processing 算法" in message:
             return self._error_message(
-                title="算法不可用",
-                reason="模型规划了一个当前 QGIS 环境里不存在的 Processing 算法。",
+                title=choose("算法不可用", "Algorithm unavailable"),
+                reason=choose("模型规划了一个当前 QGIS 环境里不存在的 Processing 算法。", "The model planned a Processing algorithm that does not exist in the current QGIS environment."),
                 suggestions=[
-                    "检查对应插件或处理组件是否已安装。",
-                    "换一种更常见的表达方式重新发送。",
-                    "如果是特定第三方算法，先确认它能在 QGIS 处理工具箱里手动找到。",
+                    choose("检查对应插件或处理组件是否已安装。", "Check whether the relevant plugin or processing component is installed."),
+                    choose("换一种更常见的表达方式重新发送。", "Try sending the command again with a more common wording."),
+                    choose("如果是特定第三方算法，先确认它能在 QGIS 处理工具箱里手动找到。", "If it is a specific third-party algorithm, first confirm that you can find it manually in the QGIS Processing Toolbox."),
                 ],
                 detail=message,
             )
         if "缺少有效图层" in message:
             return self._error_message(
-                title="执行步骤缺少图层",
-                reason="某一步需要图层输入，但插件没有解析到有效图层。",
+                title=choose("执行步骤缺少图层", "Execution step is missing a layer"),
+                reason=choose("某一步需要图层输入，但插件没有解析到有效图层。", "One step needs a layer input, but the plugin did not resolve a valid layer."),
                 suggestions=[
-                    "把命令里的图层名写完整。",
-                    "如果引用的是上一步结果，尽量把命令拆成“先...然后...”形式。",
-                    "确认当前工程里已经加载了目标图层。",
+                    choose("把命令里的图层名写完整。", "Use the full layer name in the command."),
+                    choose("如果引用的是上一步结果，尽量把命令拆成“先...然后...”形式。", 'If you are referring to the previous result, try splitting the command into a "first... then..." form.'),
+                    choose("确认当前工程里已经加载了目标图层。", "Confirm that the target layer is already loaded in the current project."),
                 ],
                 detail=message,
             )
         return self._error_message(
-            title="执行失败",
-            reason="插件在执行过程中遇到了未归类的错误。",
+            title=choose("执行失败", "Execution failed"),
+            reason=choose("插件在执行过程中遇到了未归类的错误。", "The plugin encountered an uncategorized error during execution."),
             suggestions=[
-                "先检查计划说明里的每一步是否符合你的原意。",
-                "把命令拆成更短、更明确的几句分别执行。",
-                "如果问题持续出现，把当前命令和报错一起发给我继续修。",
+                choose("先检查计划说明里的每一步是否符合你的原意。", "First check whether each step in the plan matches your intent."),
+                choose("把命令拆成更短、更明确的几句分别执行。", "Split the command into shorter and clearer commands and run them one by one."),
+                choose("如果问题持续出现，把当前命令和报错一起发给我继续修。", "If the issue keeps happening, send me the command together with the error and I will keep fixing it."),
             ],
             detail=message,
         )
 
     def _error_message(self, title: str, reason: str, suggestions: list, detail: str = ""):
-        lines = [title, "", "原因：{}".format(reason)]
+        lines = [title, "", choose("原因：{}", "Reason: {}").format(reason)]
         if detail:
-            lines.append("详情：{}".format(detail))
+            lines.append(choose("详情：{}", "Details: {}").format(detail))
         if suggestions:
-            lines.append("建议修改：")
+            lines.append(choose("建议修改：", "Suggestions:"))
             for index, suggestion in enumerate(suggestions, start=1):
                 lines.append("{}. {}".format(index, suggestion))
         return "\n".join(lines)

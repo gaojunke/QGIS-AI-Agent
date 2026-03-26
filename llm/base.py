@@ -2,6 +2,8 @@ import json
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from ..i18n import choose
+
 
 class LLMError(RuntimeError):
     pass
@@ -25,7 +27,7 @@ class LLMClientBase:
         }
 
     def call_plan_tool(self, system_prompt: str, user_prompt: str, tool_schema: dict) -> dict:
-        raise LLMError("当前模型客户端不支持 tool calling。")
+        raise LLMError(choose("当前模型客户端不支持 tool calling。", "The current model client does not support tool calling."))
 
     def list_models(self) -> list:
         raise NotImplementedError
@@ -34,7 +36,7 @@ class LLMClientBase:
         models = self.list_models()
         return {
             "ok": True,
-            "message": "连接成功，获取到 {} 个模型。".format(len(models)),
+            "message": choose("连接成功，获取到 {} 个模型。", "Connection succeeded. Retrieved {} models.").format(len(models)),
             "models": models,
         }
 

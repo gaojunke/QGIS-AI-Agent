@@ -86,9 +86,9 @@ class SettingsDialog(QDialog):
         self.timeout_spin.setValue(config.request_timeout)
         self.allow_dynamic_processing_check = QCheckBox(choose("允许调用当前 QGIS 中其他已安装算法（高级模式）", "Allow additional installed QGIS algorithms (advanced mode)"))
         self.allow_dynamic_processing_check.setChecked(bool(config.allow_dynamic_processing))
-        self.deepseek_thinking_check = QCheckBox("启用 DeepSeek thinking")
+        self.deepseek_thinking_check = QCheckBox(choose("启用 DeepSeek thinking", "Enable DeepSeek thinking"))
         self.deepseek_thinking_check.setChecked(bool(config.deepseek_enable_thinking))
-        self.deepseek_tool_calling_check = QCheckBox("启用 DeepSeek tool calling")
+        self.deepseek_tool_calling_check = QCheckBox(choose("启用 DeepSeek tool calling", "Enable DeepSeek tool calling"))
         self.deepseek_tool_calling_check.setChecked(bool(config.deepseek_use_tool_calling))
 
         self.chat_mode_combo = QComboBox()
@@ -179,16 +179,16 @@ class SettingsDialog(QDialog):
             deepseek_use_tool_calling=bool(self.deepseek_tool_calling_check.isChecked()),
         )
         if provider == "managed_backend" and not config.backend_access_token:
-            QMessageBox.warning(self, "缺少登录信息", "托管后端模式需要先点击“登录后端”，成功后再保存。")
+            QMessageBox.warning(self, choose("缺少登录信息", "Missing Login"), choose("托管后端模式需要先点击“登录后端”，成功后再保存。", "Managed backend mode requires clicking 'Backend Login' first. Save settings after a successful login."))
             return
         if provider in {"deepseek", "gemini", "openai_compatible"} and not config.api_key:
-            QMessageBox.warning(self, "缺少 API Key", "当前 Provider 需要填写 API Key。")
+            QMessageBox.warning(self, choose("缺少 API Key", "Missing API Key"), choose("当前 Provider 需要填写 API Key。", "The current provider requires an API key."))
             return
         if provider != "none" and not config.base_url:
-            QMessageBox.warning(self, "缺少地址", "请填写 Base URL。")
+            QMessageBox.warning(self, choose("缺少地址", "Missing URL"), choose("请填写 Base URL。", "Please fill in the Base URL."))
             return
         if provider != "none" and not config.model_name:
-            QMessageBox.warning(self, "缺少模型", "请先获取模型并选择一个模型。")
+            QMessageBox.warning(self, choose("缺少模型", "Missing Model"), choose("请先获取模型并选择一个模型。", "Please fetch models and select one first."))
             return
         self.settings_manager.save(config)
         super().accept()
@@ -196,37 +196,37 @@ class SettingsDialog(QDialog):
     def fetch_models(self):
         provider = self.provider_combo.currentData()
         if provider == "none":
-            self._set_status("当前为 Disabled，无需获取模型。")
+            self._set_status(choose("当前为 Disabled，无需获取模型。", "Provider is Disabled. No need to fetch models."))
             return
         self._run_network_task(
             lambda: self._build_client(require_model=False).list_models(),
             on_success=lambda models, current_provider=provider: self._on_models_loaded(current_provider, models),
-            on_error=lambda exc: self._show_network_error("获取模型失败", exc),
-            busy_text="正在获取模型...",
+            on_error=lambda exc: self._show_network_error(choose("获取模型失败", "Failed to Fetch Models"), exc),
+            busy_text=choose("正在获取模型...", "Fetching models..."),
         )
 
     def test_connection(self):
         provider = self.provider_combo.currentData()
         if provider == "none":
-            self._set_status("Disabled 模式下不需要测试连接。")
+            self._set_status(choose("Disabled 模式下不需要测试连接。", "No connection test is needed in Disabled mode."))
             return
         self._run_network_task(
             lambda: self._build_client(require_model=False).test_connection(),
             on_success=lambda result, current_provider=provider: self._on_connection_tested(current_provider, result),
-            on_error=lambda exc: self._show_network_error("连接失败", exc),
-            busy_text="正在测试连接...",
+            on_error=lambda exc: self._show_network_error(choose("连接失败", "Connection Failed"), exc),
+            busy_text=choose("正在测试连接...", "Testing connection..."),
         )
 
     def login_backend(self):
         provider = self.provider_combo.currentData()
         if provider != "managed_backend":
-            self._set_status("只有托管后端模式需要登录。")
+            self._set_status(choose("只有托管后端模式需要登录。", "Only managed backend mode requires login."))
             return
         self._run_network_task(
             lambda: self._build_client(require_model=False).login(),
             on_success=self._on_backend_logged_in,
-            on_error=lambda exc: self._show_network_error("登录失败", exc),
-            busy_text="正在登录后端...",
+            on_error=lambda exc: self._show_network_error(choose("登录失败", "Login Failed"), exc),
+            busy_text=choose("正在登录后端...", "Logging in to backend..."),
         )
 
     def current_model_name(self) -> str:
@@ -238,11 +238,11 @@ class SettingsDialog(QDialog):
         api_key = self.api_key_edit.text().strip()
         model_name = self.current_model_name()
         if provider in {"deepseek", "gemini", "openai_compatible"} and not api_key:
-            raise LLMError("请先填写 API Key。")
+            raise LLMError(choose("请先填写 API Key。", "Please fill in the API key first."))
         if not base_url:
-            raise LLMError("请先填写 Base URL。")
+            raise LLMError(choose("请先填写 Base URL。", "Please fill in the Base URL first."))
         if require_model and not model_name:
-            raise LLMError("请先选择模型。")
+            raise LLMError(choose("请先选择模型。", "Please select a model first."))
         return create_client(
             provider=provider,
             base_url=base_url,
@@ -322,7 +322,7 @@ class SettingsDialog(QDialog):
         if provider != self.provider_combo.currentData():
             return
         if not models:
-            self._set_status("连接成功，但没有返回可用模型。")
+            self._set_status(choose("连接成功，但没有返回可用模型。", "Connection succeeded, but no available models were returned."))
             return
         self.model_combo.clear()
         for model in models:
@@ -330,7 +330,7 @@ class SettingsDialog(QDialog):
         preferred = default_model(provider)
         if preferred and preferred in models:
             self._set_model(preferred)
-        self._set_status("获取模型成功，共 {} 个。".format(len(models)))
+        self._set_status(choose("获取模型成功，共 {} 个。", "Fetched models successfully. Total: {}.").format(len(models)))
 
     def _on_connection_tested(self, provider: str, result: dict):
         if provider != self.provider_combo.currentData():
@@ -343,16 +343,16 @@ class SettingsDialog(QDialog):
             if preferred and preferred in models:
                 self._set_model(preferred)
         selected = self.current_model_name() or (models[0] if models else "")
-        message = result.get("message", "连接成功。")
+        message = result.get("message", choose("连接成功。", "Connection successful."))
         if selected:
-            message = "{} 当前模型: {}".format(message, selected)
+            message = choose("{} 当前模型: {}", "{} Current model: {}").format(message, selected)
         self._set_status(message)
-        QMessageBox.information(self, "连接成功", message)
+        QMessageBox.information(self, choose("连接成功", "Connection Successful"), message)
 
     def _on_backend_logged_in(self, token: str):
         self.backend_token_edit.setText(token)
-        self._set_status("后端登录成功，可继续获取模型或测试连接。")
-        QMessageBox.information(self, "登录成功", "后端登录成功。")
+        self._set_status(choose("后端登录成功，可继续获取模型或测试连接。", "Backend login successful. You can now fetch models or test the connection."))
+        QMessageBox.information(self, choose("登录成功", "Login Successful"), choose("后端登录成功。", "Backend login successful."))
 
     def _show_network_error(self, title: str, exc: Exception):
         self._set_status("{}: {}".format(title, exc))

@@ -1,5 +1,6 @@
 import json
 
+from ..i18n import choose
 from .base import LLMError
 from .openai_client import OpenAICompatibleClient
 
@@ -37,7 +38,7 @@ class DeepSeekClient(OpenAICompatibleClient):
 
     def call_plan_tool(self, system_prompt: str, user_prompt: str, tool_schema: dict) -> dict:
         if not self.use_tool_calling:
-            raise LLMError("当前 DeepSeek 配置未启用 tool calling。")
+            raise LLMError(choose("当前 DeepSeek 配置未启用 tool calling。", "Tool calling is not enabled for the current DeepSeek configuration."))
         data = self._chat_completion_payload(
             system_prompt,
             user_prompt,
@@ -48,14 +49,14 @@ class DeepSeekClient(OpenAICompatibleClient):
         message = self._extract_message(data)
         tool_calls = message.get("tool_calls") or []
         if not tool_calls:
-            raise LLMError("DeepSeek 没有返回 tool call。")
+            raise LLMError(choose("DeepSeek 没有返回 tool call。", "DeepSeek did not return a tool call."))
         arguments = tool_calls[0].get("function", {}).get("arguments", "")
         if not arguments:
-            raise LLMError("DeepSeek tool call 缺少 arguments。")
+            raise LLMError(choose("DeepSeek tool call 缺少 arguments。", "The DeepSeek tool call is missing arguments."))
         try:
             parsed = json.loads(arguments)
         except Exception as exc:
-            raise LLMError("DeepSeek tool call arguments 不是合法 JSON: {}".format(exc))
+            raise LLMError(choose("DeepSeek tool call arguments 不是合法 JSON: {}", "DeepSeek tool call arguments are not valid JSON: {}").format(exc))
         return {
             "arguments": parsed,
             "reasoning_content": self._message_reasoning(message),

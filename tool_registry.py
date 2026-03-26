@@ -1,5 +1,7 @@
 from dataclasses import dataclass, field
 
+from .i18n import choose
+
 
 @dataclass(frozen=True)
 class ToolDefinition:
@@ -299,16 +301,16 @@ class ToolRegistry:
             if dynamic_tool is not None:
                 return dynamic_tool
             if not allow_dynamic_processing:
-                raise ValueError("该 Processing 算法未在插件白名单内: {}".format(step.tool_id))
-            raise ValueError("当前 QGIS 中未找到 Processing 算法: {}".format(step.tool_id))
+                raise ValueError(choose("该 Processing 算法未在插件白名单内: {}", "This Processing algorithm is not in the plugin allowlist: {}").format(step.tool_id))
+            raise ValueError(choose("当前 QGIS 中未找到 Processing 算法: {}", "The Processing algorithm was not found in the current QGIS environment: {}").format(step.tool_id))
 
         if step.kind == "qgis":
             tool = self.qgis_definition(step.operation)
             if tool is None:
-                raise ValueError("不在白名单中的 QGIS 操作: {}".format(step.operation))
+                raise ValueError(choose("不在白名单中的 QGIS 操作: {}", "This QGIS operation is not in the allowlist: {}").format(step.operation))
             return tool
 
-        raise ValueError("未知步骤类型: {}".format(step.kind))
+        raise ValueError(choose("未知步骤类型: {}", "Unknown step type: {}").format(step.kind))
 
     def enforce_on_plan(self, plan, allow_dynamic_processing: bool = False):
         requires_confirmation = bool(plan.requires_confirmation)

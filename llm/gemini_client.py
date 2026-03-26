@@ -3,6 +3,7 @@ import importlib
 import os
 import sys
 
+from ..i18n import choose
 from .base import LLMClientBase, LLMError
 
 
@@ -20,7 +21,7 @@ class GeminiClient(LLMClientBase):
                     return importlib.import_module("openai")
                 except Exception:
                     continue
-        raise LLMError("Gemini 依赖 openai SDK，但当前 QGIS Python 环境未能导入 openai。")
+        raise LLMError(choose("Gemini 依赖 openai SDK，但当前 QGIS Python 环境未能导入 openai。", "Gemini depends on the openai SDK, but the current QGIS Python environment could not import openai."))
 
     def _build_client(self):
         if not self.base_url or not self.model_name:
@@ -30,7 +31,7 @@ class GeminiClient(LLMClientBase):
         openai_module = self._import_openai()
         OpenAI = getattr(openai_module, "OpenAI", None)
         if OpenAI is None:
-            raise LLMError("当前 openai SDK 不包含 OpenAI 客户端，请升级 openai 包。")
+            raise LLMError(choose("当前 openai SDK 不包含 OpenAI 客户端，请升级 openai 包。", "The current openai SDK does not include the OpenAI client. Please upgrade the openai package."))
         return OpenAI(
             api_key=self.api_key,
             base_url=self.base_url.rstrip("/") + "/",
@@ -53,7 +54,7 @@ class GeminiClient(LLMClientBase):
                 return "".join(getattr(part, "text", "") or part.get("text", "") for part in content)
             return content or ""
         except Exception as exc:
-            raise LLMError("Gemini chat 请求失败: {}".format(exc))
+            raise LLMError(choose("Gemini chat 请求失败: {}", "Gemini chat request failed: {}").format(exc))
 
     def list_models(self) -> list:
         client = self._build_client()
@@ -66,7 +67,7 @@ class GeminiClient(LLMClientBase):
                     models.append(str(model_id))
             return models
         except Exception as exc:
-            raise LLMError("Gemini 获取模型失败: {}".format(exc))
+            raise LLMError(choose("Gemini 获取模型失败: {}", "Failed to fetch Gemini models: {}").format(exc))
 
     def _candidate_site_packages(self):
         candidates = []

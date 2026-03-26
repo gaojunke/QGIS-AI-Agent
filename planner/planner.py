@@ -2,6 +2,7 @@ import json
 import re
 from dataclasses import dataclass, field
 
+from ..i18n import choose
 from ..llm import create_client
 from ..llm.base import LLMError
 from .mcp_bridge import McpBridgeService
@@ -75,18 +76,26 @@ class CommandPlanner:
                     reasoning_text=reasoning_text,
                 )
             except (LLMError, ValueError) as exc:
-                detail = "LLM 规划失败，已回退到规则解析: {}".format(exc)
+                detail = choose("LLM 规划失败，已回退到规则解析: {}", "LLM planning failed and fell back to rule-based parsing: {}").format(exc)
                 if raw_response:
-                    detail = "{} | 返回摘要: {}".format(detail, self._truncate(raw_response, 220))
+                    detail = "{} | {}".format(detail, choose("返回摘要: {}", "Response excerpt: {}").format(self._truncate(raw_response, 220)))
                 warnings.append(detail)
 
         plan = self._rule_based.parse(command_text, project_context, request_mode=request_mode)
         if plan is None:
             if warnings:
                 raise ValueError(
-                    "模型规划失败，且规则解析也未匹配当前命令。最后一次模型错误: {}".format(warnings[-1])
+                    choose(
+                        "模型规划失败，且规则解析也未匹配当前命令。最后一次模型错误: {}",
+                        "Model planning failed, and rule-based parsing also could not match the command. Last model error: {}",
+                    ).format(warnings[-1])
                 )
-            raise ValueError("无法解析该命令。请补充更明确的图层名，或先在设置中测试模型连通性。")
+            raise ValueError(
+                choose(
+                    "无法解析该命令。请补充更明确的图层名，或先在设置中测试模型连通性。",
+                    "Unable to parse this command. Please provide a more specific layer name or test model connectivity in settings first.",
+                )
+            )
         return PlanningResult(
             plan=self.registry.enforce_on_plan(plan, allow_dynamic_processing=allow_dynamic_processing),
             source=plan.source or "rule-based",
@@ -125,7 +134,10 @@ class CommandPlanner:
                 )
                 return plan, raw_response, (tool_result.get("reasoning_content") or "").strip()
             except (LLMError, ValueError) as exc:
-                fallback_warning = "DeepSeek tool calling 失败，回退到 JSON 规划: {}".format(exc)
+                fallback_warning = choose(
+                    "DeepSeek tool calling 失败，回退到 JSON 规划: {}",
+                    "DeepSeek tool calling failed and fell back to JSON planning: {}",
+                ).format(exc)
                 response = client.chat_with_metadata(SYSTEM_PROMPT, user_prompt)
                 raw_response = response.get("content", "") or ""
                 plan = self.registry.enforce_on_plan(
@@ -191,7 +203,7 @@ class CommandPlanner:
         start = text.find("{")
         end = text.rfind("}")
         if start < 0 or end < start:
-            raise ValueError("模型没有返回合法 JSON。")
+            raise ValueError(choose("模型没有返回合法 JSON。", "The model did not return valid JSON."))
         return json.loads(text[start : end + 1])
 
     def _truncate(self, text: str, max_length: int) -> str:
