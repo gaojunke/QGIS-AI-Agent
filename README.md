@@ -27,7 +27,7 @@
 - 支持本地问答，例如面积、字段、图层列表、坐标系、要素数量
 - 支持问答 / 执行 / 自动 三种模式
 - 支持最近操作、短会话记忆、图层歧义确认
-- 支持 DeepSeek、Gemini、OpenAI Compatible、Ollama 和托管后端
+- 支持 DeepSeek、Gemini、OpenAI Compatible、Ollama 和订阅服务 / 托管 API
 - DeepSeek 支持 `thinking`、tool calling 和 reasoning 展示
 - 支持图层单色渲染、分类渲染、按规程标准渲染
 - 支持规则回退，模型不可用时仍可处理常见命令
@@ -158,9 +158,17 @@
 
 ### 其他 Provider
 
-- `Managed Backend`
+- `Subscription / Hosted API`
 - `OpenAI Compatible`
 - `Ollama`
+
+### 订阅服务 / 托管 API
+
+- 用户可以继续填写自己的 API Key 使用各家模型
+- 也可以切换到 `Subscription / Hosted API`
+- 在该模式下支持两种用法：
+  - 直接粘贴你发放的 `Subscription Token`
+  - 填写订阅账号和密码，点击 `Login to Get Token` 自动获取令牌
 
 ## 界面素材
 

@@ -50,7 +50,7 @@ class SettingsDialog(QDialog):
 
         self.provider_combo = QComboBox()
         self.provider_combo.addItem(choose("禁用", "Disabled"), "none")
-        self.provider_combo.addItem(choose("托管后端", "Managed Backend"), "managed_backend")
+        self.provider_combo.addItem(choose("订阅服务 / 托管 API", "Subscription / Hosted API"), "managed_backend")
         self.provider_combo.addItem("DeepSeek", "deepseek")
         self.provider_combo.addItem("Gemini", "gemini")
         self.provider_combo.addItem("OpenAI Compatible", "openai_compatible")
@@ -66,7 +66,12 @@ class SettingsDialog(QDialog):
         self.backend_password_edit.setEchoMode(QLineEdit.Password)
         self.backend_token_edit = QLineEdit(config.backend_access_token or "")
         self.backend_token_edit.setEchoMode(QLineEdit.Password)
-        self.backend_token_edit.setReadOnly(True)
+        self.backend_token_edit.setPlaceholderText(
+            choose(
+                "可直接粘贴你发给用户的订阅令牌；也可以先用账号密码登录后自动获取。",
+                "Paste the subscription token you issued to the user, or log in with account credentials to fetch one automatically.",
+            )
+        )
 
         self.model_combo = QComboBox()
         self.model_combo.setEditable(False)
@@ -76,7 +81,7 @@ class SettingsDialog(QDialog):
 
         self.fetch_models_button = QPushButton(choose("获取模型", "Fetch Models"))
         self.fetch_models_button.clicked.connect(self.fetch_models)
-        self.login_button = QPushButton(choose("登录后端", "Backend Login"))
+        self.login_button = QPushButton(choose("账号登录获取令牌", "Login to Get Token"))
         self.login_button.clicked.connect(self.login_backend)
         self.test_button = QPushButton(choose("测试连接", "Test Connection"))
         self.test_button.clicked.connect(self.test_connection)
@@ -110,9 +115,19 @@ class SettingsDialog(QDialog):
         )
         self.mcp_edit.setMinimumHeight(90)
 
-        self.status_label = QLabel(choose("填写地址和 API Key 后，可先测试连接，再选择模型。", "After filling in the URL and API key, test the connection first and then choose a model."))
+        self.status_label = QLabel(
+            choose(
+                "可填写自己的 API Key；如果使用订阅服务，可切换到“订阅服务 / 托管 API”，直接粘贴订阅令牌或先账号登录。",
+                "You can use your own API key. For the hosted subscription service, switch to 'Subscription / Hosted API' and either paste a subscription token or log in first.",
+            )
+        )
         self.status_label.setWordWrap(True)
-        self.secret_hint_label = QLabel(choose("API Key、后端密码和访问令牌仅保留在本次 QGIS 会话中，不再写入本地配置。", "API keys, backend passwords, and access tokens are kept only for the current QGIS session and are not written to local settings."))
+        self.secret_hint_label = QLabel(
+            choose(
+                "API Key、后端密码和订阅令牌仅保留在本次 QGIS 会话中，不再写入本地配置。",
+                "API keys, backend passwords, and subscription tokens are kept only for the current QGIS session and are not written to local settings.",
+            )
+        )
         self.secret_hint_label.setWordWrap(True)
 
         model_row = QWidget()
@@ -127,9 +142,9 @@ class SettingsDialog(QDialog):
         form_layout.addRow(choose("服务提供方", "Provider"), self.provider_combo)
         form_layout.addRow("Base URL", self.base_url_edit)
         form_layout.addRow("API Key", self.api_key_edit)
-        form_layout.addRow(choose("后端用户名", "Backend Username"), self.backend_username_edit)
-        form_layout.addRow(choose("后端密码", "Backend Password"), self.backend_password_edit)
-        form_layout.addRow(choose("后端令牌", "Backend Token"), self.backend_token_edit)
+        form_layout.addRow(choose("订阅账号", "Subscription Username"), self.backend_username_edit)
+        form_layout.addRow(choose("订阅密码", "Subscription Password"), self.backend_password_edit)
+        form_layout.addRow(choose("订阅令牌", "Subscription Token"), self.backend_token_edit)
         form_layout.addRow(choose("模型", "Model"), model_row)
         form_layout.addRow(choose("超时（秒）", "Timeout (s)"), self.timeout_spin)
         form_layout.addRow(choose("高级选项", "Advanced"), self.allow_dynamic_processing_check)
@@ -179,7 +194,14 @@ class SettingsDialog(QDialog):
             deepseek_use_tool_calling=bool(self.deepseek_tool_calling_check.isChecked()),
         )
         if provider == "managed_backend" and not config.backend_access_token:
-            QMessageBox.warning(self, choose("缺少登录信息", "Missing Login"), choose("托管后端模式需要先点击“登录后端”，成功后再保存。", "Managed backend mode requires clicking 'Backend Login' first. Save settings after a successful login."))
+            QMessageBox.warning(
+                self,
+                choose("缺少订阅凭证", "Missing Subscription Credentials"),
+                choose(
+                    "订阅服务模式需要先粘贴订阅令牌，或点击“账号登录获取令牌”成功后再保存。",
+                    "Subscription mode requires either a pasted subscription token or a successful 'Login to Get Token' action before saving.",
+                ),
+            )
             return
         if provider in {"deepseek", "gemini", "openai_compatible"} and not config.api_key:
             QMessageBox.warning(self, choose("缺少 API Key", "Missing API Key"), choose("当前 Provider 需要填写 API Key。", "The current provider requires an API key."))
@@ -220,13 +242,13 @@ class SettingsDialog(QDialog):
     def login_backend(self):
         provider = self.provider_combo.currentData()
         if provider != "managed_backend":
-            self._set_status(choose("只有托管后端模式需要登录。", "Only managed backend mode requires login."))
+            self._set_status(choose("只有订阅服务模式需要账号登录。", "Only subscription mode needs account login."))
             return
         self._run_network_task(
             lambda: self._build_client(require_model=False).login(),
             on_success=self._on_backend_logged_in,
             on_error=lambda exc: self._show_network_error(choose("登录失败", "Login Failed"), exc),
-            busy_text=choose("正在登录后端...", "Logging in to backend..."),
+            busy_text=choose("正在登录订阅服务...", "Logging in to subscription service..."),
         )
 
     def current_model_name(self) -> str:
@@ -351,8 +373,17 @@ class SettingsDialog(QDialog):
 
     def _on_backend_logged_in(self, token: str):
         self.backend_token_edit.setText(token)
-        self._set_status(choose("后端登录成功，可继续获取模型或测试连接。", "Backend login successful. You can now fetch models or test the connection."))
-        QMessageBox.information(self, choose("登录成功", "Login Successful"), choose("后端登录成功。", "Backend login successful."))
+        self._set_status(
+            choose(
+                "订阅服务登录成功，已获取订阅令牌，可继续获取模型或测试连接。",
+                "Subscription login succeeded and a subscription token was obtained. You can now fetch models or test the connection.",
+            )
+        )
+        QMessageBox.information(
+            self,
+            choose("登录成功", "Login Successful"),
+            choose("订阅服务登录成功。", "Subscription login successful."),
+        )
 
     def _show_network_error(self, title: str, exc: Exception):
         self._set_status("{}: {}".format(title, exc))

@@ -22,7 +22,7 @@ class ManagedBackendClient(LLMClientBase):
         if not self.base_url:
             raise LLMError("Managed backend provider requires base URL.")
         if not self.username or not self.password:
-            raise LLMError(choose("请先填写后端账号和密码。", "Please fill in the backend username and password first."))
+            raise LLMError(choose("请先填写订阅账号和密码。", "Please fill in the subscription username and password first."))
 
         data = self._post_json(
             "{}/api/auth/login".format(self.base_url),
@@ -31,7 +31,7 @@ class ManagedBackendClient(LLMClientBase):
         )
         token = str(data.get("access_token", "")).strip()
         if not token:
-            raise LLMError(choose("登录成功，但后端没有返回 access_token。", "Login succeeded, but the backend did not return an access_token."))
+            raise LLMError(choose("登录成功，但订阅服务没有返回 access_token。", "Login succeeded, but the subscription service did not return an access_token."))
         self.access_token = token
         return token
 
@@ -78,7 +78,7 @@ class ManagedBackendClient(LLMClientBase):
         models = self.list_models()
         return {
             "ok": bool(data.get("ok", True)),
-            "message": data.get("message", choose("后端连接成功。", "Backend connection successful.")),
+            "message": data.get("message", choose("订阅服务连接成功。", "Subscription service connection successful.")),
             "models": models,
         }
 
@@ -88,7 +88,7 @@ class ManagedBackendClient(LLMClientBase):
             return token
         if self.username and self.password:
             return self.login()
-        raise LLMError(choose("请先登录后端，或提供有效 access token。", "Please log in to the backend first, or provide a valid access token."))
+        raise LLMError(choose("请先提供有效的订阅令牌，或使用订阅账号登录。", "Please provide a valid subscription token first, or log in with a subscription account."))
 
     def _auth_headers(self, token: str) -> dict:
         return {
