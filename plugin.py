@@ -13,6 +13,7 @@ class NaturalLanguageQgisAgentPlugin:
     def __init__(self, iface):
         self.iface = iface
         self.settings_manager = SettingsManager()
+        self.menu_title = "&QGIS AI Agent"
         self.vector_menu_title = "&QGIS AI Agent"
         self.toolbar_action = None
         self.settings_action = None
@@ -27,6 +28,8 @@ class NaturalLanguageQgisAgentPlugin:
         self.settings_action.triggered.connect(self.show_settings)
 
         self.iface.addToolBarIcon(self.toolbar_action)
+        self.iface.addPluginToMenu(self.menu_title, self.toolbar_action)
+        self.iface.addPluginToMenu(self.menu_title, self.settings_action)
         self.iface.addPluginToVectorMenu(self.vector_menu_title, self.toolbar_action)
         self.iface.addPluginToVectorMenu(self.vector_menu_title, self.settings_action)
 
@@ -38,18 +41,20 @@ class NaturalLanguageQgisAgentPlugin:
 
         if self.toolbar_action is not None:
             self.iface.removeToolBarIcon(self.toolbar_action)
+            self.iface.removePluginMenu(self.menu_title, self.toolbar_action)
             self.iface.removePluginVectorMenu(self.vector_menu_title, self.toolbar_action)
             self.toolbar_action.deleteLater()
             self.toolbar_action = None
 
         if self.settings_action is not None:
+            self.iface.removePluginMenu(self.menu_title, self.settings_action)
             self.iface.removePluginVectorMenu(self.vector_menu_title, self.settings_action)
             self.settings_action.deleteLater()
             self.settings_action = None
 
     def show_dock(self):
         if self.dock_widget is None:
-            self.dock_widget = NlQgisDockWidget(self.iface, self.settings_manager)
+            self.dock_widget = NlQgisDockWidget(self.iface, self.settings_manager, open_settings_callback=self.show_settings)
             self.iface.addDockWidget(Qt.RightDockWidgetArea, self.dock_widget)
 
         self.dock_widget.refresh_project_context()

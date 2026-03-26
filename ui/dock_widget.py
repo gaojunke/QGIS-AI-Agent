@@ -49,10 +49,11 @@ class PlannerWorker(QObject):
 
 
 class NlQgisDockWidget(QDockWidget):
-    def __init__(self, iface, settings_manager, parent=None):
+    def __init__(self, iface, settings_manager, parent=None, open_settings_callback=None):
         super().__init__("QGIS AI Agent", parent or iface.mainWindow())
         self.iface = iface
         self.settings_manager = settings_manager
+        self.open_settings_callback = open_settings_callback
         self.registry = ToolRegistry()
         self.style_standards = StyleStandardRegistry()
         self.context_builder = ProjectContextBuilder()
@@ -92,6 +93,8 @@ class NlQgisDockWidget(QDockWidget):
 
         self.recent_button = QPushButton("最近操作")
         self.recent_button.clicked.connect(self.show_recent_operations)
+        self.settings_button = QPushButton("API设置")
+        self.settings_button.clicked.connect(self.open_settings_dialog)
         self.clear_button = QPushButton("清空聊天")
         self.clear_button.clicked.connect(self.clear_chat_history)
         self.cancel_button = QPushButton("取消")
@@ -102,6 +105,7 @@ class NlQgisDockWidget(QDockWidget):
         top_bar.setContentsMargins(0, 0, 0, 0)
         top_bar.addWidget(self.mode_combo)
         top_bar.addStretch(1)
+        top_bar.addWidget(self.settings_button)
         top_bar.addWidget(self.recent_button)
         top_bar.addWidget(self.clear_button)
         top_bar.addWidget(self.cancel_button)
@@ -150,6 +154,10 @@ class NlQgisDockWidget(QDockWidget):
 
     def refresh_settings_state(self):
         self._set_mode_value(self.settings_manager.load().chat_mode)
+
+    def open_settings_dialog(self):
+        if callable(self.open_settings_callback):
+            self.open_settings_callback()
 
     def refresh_project_context(self):
         self.last_context = self.context_builder.build()
