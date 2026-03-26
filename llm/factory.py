@@ -14,7 +14,7 @@ def default_base_url(provider: str) -> str:
     if provider == "ollama":
         return "http://localhost:11434"
     if provider == "managed_backend":
-        return "http://127.0.0.1:8000"
+        return "http://107.173.127.167:8000"
     return ""
 
 

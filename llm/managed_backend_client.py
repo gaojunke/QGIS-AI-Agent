@@ -80,6 +80,8 @@ class ManagedBackendClient(LLMClientBase):
             "ok": bool(data.get("ok", True)),
             "message": data.get("message", choose("订阅服务连接成功。", "Subscription service connection successful.")),
             "models": models,
+            "subscription": data.get("subscription") or {},
+            "admin_panel_url": data.get("admin_panel_url", ""),
         }
 
     def _require_token(self) -> str:

@@ -1,4 +1,4 @@
-from qgis.PyQt.QtCore import QObject, QThread, pyqtSignal
+from qgis.PyQt.QtCore import QObject, QThread, QTimer, pyqtSignal
 from qgis.PyQt.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -129,6 +129,13 @@ class SettingsDialog(QDialog):
             )
         )
         self.secret_hint_label.setWordWrap(True)
+        self.subscription_info_label = QLabel(
+            choose(
+                "订阅模式下会显示套餐、到期时间和本月剩余额度。",
+                "In subscription mode, the package, expiry time, and remaining monthly quota will be shown here.",
+            )
+        )
+        self.subscription_info_label.setWordWrap(True)
 
         model_row = QWidget()
         model_layout = QHBoxLayout(model_row)
@@ -154,6 +161,7 @@ class SettingsDialog(QDialog):
         form_layout.addRow("Skills", self.skill_edit)
         form_layout.addRow("MCP Bridge URLs", self.mcp_edit)
         form_layout.addRow(choose("状态", "Status"), self.status_label)
+        form_layout.addRow(choose("订阅信息", "Subscription"), self.subscription_info_label)
         form_layout.addRow(choose("安全说明", "Security"), self.secret_hint_label)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -300,9 +308,46 @@ class SettingsDialog(QDialog):
         is_deepseek = provider == "deepseek"
         self.deepseek_thinking_check.setEnabled(is_deepseek)
         self.deepseek_tool_calling_check.setEnabled(is_deepseek)
+        if not is_managed_backend:
+            self._set_subscription_info({})
 
     def _set_status(self, text: str):
         self.status_label.setText(text)
+
+    def _set_subscription_info(self, info: dict):
+        if not info:
+            self.subscription_info_label.setText(
+                choose(
+                    "订阅模式下会显示套餐、到期时间和本月剩余额度。",
+                    "In subscription mode, the package, expiry time, and remaining monthly quota will be shown here.",
+                )
+            )
+            return
+        plan_name = info.get("plan_name", "")
+        currency = info.get("currency", "")
+        monthly_fee = info.get("monthly_fee", "")
+        status = info.get("status", "")
+        expires_at = info.get("expires_at", "") or choose("未设置", "Not set")
+        remaining_input = info.get("remaining_input_tokens", -1)
+        remaining_output = info.get("remaining_output_tokens", -1)
+        used_cost = info.get("used_cost", 0)
+        disable_reason = info.get("disable_reason", "")
+        self.subscription_info_label.setText(
+            choose(
+                "套餐：{plan} | 月费：{currency} {fee}\n状态：{status} | 到期：{expires}\n输入余额：{rin} | 输出余额：{rout} | 本月用量金额：{currency} {cost}\n停用原因：{reason}",
+                "Package: {plan} | Monthly fee: {currency} {fee}\nStatus: {status} | Expires: {expires}\nRemaining input: {rin} | Remaining output: {rout} | Monthly usage cost: {currency} {cost}\nDisable reason: {reason}",
+            ).format(
+                plan=plan_name or "-",
+                currency=currency or "",
+                fee=monthly_fee,
+                status=status or "-",
+                expires=expires_at,
+                rin=remaining_input if int(remaining_input) >= 0 else choose("不限额", "Unlimited"),
+                rout=remaining_output if int(remaining_output) >= 0 else choose("不限额", "Unlimited"),
+                cost=used_cost,
+                reason=disable_reason or choose("无", "None"),
+            )
+        )
 
     def _set_network_busy(self, busy: bool, text: str = ""):
         if busy and text:
@@ -369,6 +414,7 @@ class SettingsDialog(QDialog):
         if selected:
             message = choose("{} 当前模型: {}", "{} Current model: {}").format(message, selected)
         self._set_status(message)
+        self._set_subscription_info(result.get("subscription") or {})
         QMessageBox.information(self, choose("连接成功", "Connection Successful"), message)
 
     def _on_backend_logged_in(self, token: str):
@@ -384,6 +430,7 @@ class SettingsDialog(QDialog):
             choose("登录成功", "Login Successful"),
             choose("订阅服务登录成功。", "Subscription login successful."),
         )
+        QTimer.singleShot(0, self.test_connection)
 
     def _show_network_error(self, title: str, exc: Exception):
         self._set_status("{}: {}".format(title, exc))
